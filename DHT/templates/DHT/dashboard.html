@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Dernières températures | DHT</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/@carbon/charts@1.27.25/dist/styles.css">
+    <style>
+        :root {
+            color-scheme: light;
+            --text-primary: #161616;
+            --text-secondary: #525252;
+            --background: #f4f4f4;
+            --layer: #ffffff;
+            --interactive: #0f62fe;
+            --border-subtle: #e0e0e0;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            color: var(--text-primary);
+            background: var(--background);
+            font-family: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+        }
+        .shell-bar { height: 48px; padding: 0 24px; display: flex; align-items: center; background: #161616; color: #f4f4f4; font-size: 14px; font-weight: 600; }
+        .shell-bar span { color: #a8a8a8; font-weight: 400; }
+        main { width: min(100% - 48px, 1120px); margin: 0 auto; padding: 48px 0 64px; }
+        header { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 32px; }
+        .eyebrow { margin: 0 0 8px; color: var(--text-secondary); font-size: 12px; font-weight: 600; }
+        h1 { margin: 0; font-size: 32px; font-weight: 400; line-height: 1.25; }
+        .count { padding: 8px 0 8px 16px; border-left: 1px solid #a8a8a8; color: var(--text-secondary); font-size: 14px; white-space: nowrap; }
+        .latest-reading, .chart-panel { background: var(--layer); }
+        .latest-reading { margin-bottom: 24px; padding: 20px; border-left: 3px solid var(--interactive); }
+        .reading-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+        .reading-label { color: var(--text-primary); font-size: 14px; font-weight: 600; }
+        .metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin-top: 24px; }
+        .metric-label { display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 14px; }
+        .metric-value { font-size: 40px; font-weight: 400; line-height: 1.1; }
+        .metric-value span { color: var(--text-secondary); font-size: 18px; }
+        .chart-panel { padding: 20px; }
+        .chart-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; margin-bottom: 20px; }
+        h2 { margin: 0; font-size: 20px; font-weight: 500; }
+        .chart-heading p { margin: 0; color: var(--text-secondary); font-size: 13px; }
+        .chart-container { position: relative; height: 340px; }
+        .empty { padding: 32px 20px; background: var(--layer); color: var(--text-secondary); }
+        time { color: var(--text-secondary); font-size: 12px; text-align: right; }
+        @media (max-width: 520px) {
+            .shell-bar { padding: 0 16px; }
+            main { width: min(100% - 32px, 1120px); padding-top: 32px; }
+            header { align-items: flex-start; flex-direction: column; gap: 12px; }
+            .count { padding: 0; border: 0; }
+            h1 { font-size: 28px; }
+            .metrics { gap: 16px; }
+            .metric-value { font-size: 32px; }
+            .chart-heading { align-items: flex-start; flex-direction: column; gap: 8px; }
+            .chart-container { height: 300px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="shell-bar">DHT <span>&nbsp; / &nbsp; Monitoring</span></div>
+    <main>
+        <header>
+            <div>
+                <p class="eyebrow">DONNÉES DU CAPTEUR</p>
+                <h1>Mesures du capteur</h1>
+            </div>
+            <div class="count">{{ readings|length }} points affichés</div>
+        </header>
+        {% if latest_reading %}
+            <section class="latest-reading" aria-label="Dernier relevé">
+                <div class="reading-top">
+                    <span class="reading-label">Dernier relevé</span>
+                    <time class="relative-time" datetime="{{ latest_reading.date|date:'c' }}" title="{{ latest_reading.date|date:'d/m/Y à H:i:s' }}">{{ latest_reading.date|date:"d/m/Y à H:i" }}</time>
+                </div>
+                <div class="metrics">
+                    <div>
+                        <span class="metric-label">Température</span>
+                        <strong class="metric-value">{{ latest_reading.temperature|floatformat:1 }}<span> °C</span></strong>
+                    </div>
+                    <div>
+                        <span class="metric-label">Humidité</span>
+                        <strong class="metric-value">{{ latest_reading.humidity|floatformat:1 }}<span> %</span></strong>
+                    </div>
+                </div>
+            </section>
+            <section class="chart-panel" aria-label="Historique des mesures">
+                <div class="chart-heading">
+                    <h2>Historique des mesures</h2>
+                    <p>Température et humidité · {{ readings|length }} derniers relevés</p>
+                </div>
+                <div class="chart-container" id="history-chart" role="img" aria-label="Graphique de température et d’humidité"></div>
+                <p class="chart-fallback" id="chart-fallback" hidden>Le graphique n’a pas pu être chargé. Vérifie ta connexion Internet puis recharge la page.</p>
+            </section>
+            {{ chart_readings|json_script:"chart-readings" }}
+        {% else %}
+            <div class="empty">Aucun relevé disponible pour le moment.</div>
+        {% endif %}
+    </main>
+    <script src="https://unpkg.com/@carbon/charts@1.27.25/dist/umd/bundle.umd.js"></script>
+    <script>
+        const relativeFormatter = new Intl.RelativeTimeFormat("fr", { numeric: "auto", style: "short" });
+        const relativeUnits = [
+            ["year", 31536000], ["month", 2592000], ["week", 604800],
+            ["day", 86400], ["hour", 3600], ["minute", 60], ["second", 1]
+        ];
+
+        function refreshRelativeTimes() {
+            document.querySelectorAll(".relative-time").forEach((element) => {
+                const elapsedSeconds = (new Date(element.dateTime).getTime() - Date.now()) / 1000;
+                const [, unit, secondsPerUnit] = relativeUnits
+                    .map(([unit, seconds]) => [Math.round(elapsedSeconds / seconds), unit, seconds])
+                    .find(([value, unit]) => Math.abs(value) >= 1 || unit === "second");
+                const value = Math.round(elapsedSeconds / secondsPerUnit);
+                element.textContent = relativeFormatter.format(value, unit);
+            });
+        }
+
+        refreshRelativeTimes();
+        window.setInterval(refreshRelativeTimes, 30000);
+
+        const chartElement = document.getElementById("history-chart");
+        const chartFallback = document.getElementById("chart-fallback");
+        const chartReadings = JSON.parse(document.getElementById("chart-readings")?.textContent || "[]");
+
+        if (chartReadings.length && window.Charts?.LineChart) {
+            const chartData = chartReadings.flatMap((reading) => {
+                const date = new Date(reading.date);
+                return [
+                    { group: "Température", date, value: reading.temperature },
+                    { group: "Humidité", date, value: reading.humidity }
+                ];
+            });
+
+            new window.Charts.LineChart(chartElement, {
+                data: chartData,
+                options: {
+                    title: "Évolution du capteur",
+                    height: "100%",
+                    locale: { code: "fr-FR" },
+                    curve: "curveMonotoneX",
+                    points: { enabled: true, filled: true, radius: 3 },
+                    legend: { position: "bottom" },
+                    toolbar: { enabled: true, numberOfIcons: 3 },
+                    zoomBar: { top: { enabled: true }, minZoomRatio: 0.1 },
+                    axes: {
+                        bottom: { mapsTo: "date", title: "Date et heure", scaleType: "time" },
+                        left: {
+                            mapsTo: "value",
+                            title: "Température (°C)",
+                            scaleType: "linear",
+                            main: true,
+                            correspondingDatasets: ["Température"]
+                        },
+                        right: {
+                            mapsTo: "value",
+                            title: "Humidité (%)",
+                            scaleType: "linear",
+                            domain: [0, 100],
+                            correspondingDatasets: ["Humidité"]
+                        }
+                    },
+                    accessibility: { svgAriaLabel: "Évolution de la température et de l’humidité" }
+                }
+            });
+        } else if (chartElement) {
+            chartElement.hidden = true;
+            chartFallback.hidden = false;
+        }
+    </script>
+</body>
+</html>
